@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import ProfileForm from './components/ProfileForm';
@@ -12,6 +11,7 @@ const PATIENT_ID = 'demo_patient_123';
 function App() {
   const [currentView, setCurrentView] = useState('onboarding');
   const [medications, setMedications] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
   const [selectedMedId, setSelectedMedId] = useState(null);
@@ -31,8 +31,9 @@ function App() {
     try {
       const res = await fetch(`/api/profile/get?id=${PATIENT_ID}`);
       if (res.ok) {
-        const profile = await res.json();
-        if (profile.name) {
+        const data = await res.json();
+        setProfile(data);
+        if (data.name) {
           setCurrentView('dashboard');
         }
       }
@@ -62,14 +63,15 @@ function App() {
           id: PATIENT_ID,
           profile: {
             name: data.name,
-            age: data.age,
-            allergies: data.allergies.split(',').map(a => a.trim()).filter(Boolean),
-            conditions: data.conditions.split(',').map(c => c.trim()).filter(Boolean),
+            age: Number(data.age),
+            allergies: data.allergies ? data.allergies.split(',').map(a => a.trim()).filter(Boolean) : [],
+            conditions: data.conditions ? data.conditions.split(',').map(c => c.trim()).filter(Boolean) : [],
           }
         })
       });
 
       if (!res.ok) throw new Error('Failed to save profile');
+      setProfile(data);
       setCurrentView('dashboard');
       toast.success('Profile saved!');
     } catch (err) {
@@ -93,7 +95,7 @@ function App() {
       }
       setShowAddModal(false);
     } catch (err) {
-      toast.error('Failed to add');
+      toast.error('Failed to add medication');
     }
   };
 
@@ -113,17 +115,27 @@ function App() {
       dosage: data.dosage,
       instructions: data.instructions
     });
+    setShowScanModal(false);
   };
 
   const handleTranslate = async (med) => {
-    const res = await fetch('/api/translator/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(med)
-    });
-    const { translation } = await res.json();
-    toast.success('Translated!');
-    return translation;
+    try {
+      const res = await fetch('/api/translator/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drug_name: med.drug_name,
+          dosage: med.dosage,
+          instructions: med.instructions
+        })
+      });
+      const { translation } = await res.json();
+      toast.success('Translated!');
+      return translation;
+    } catch (err) {
+      toast.error('Translation failed');
+      return null;
+    }
   };
 
   const selectedMed = medications.find(m => m.id === selectedMedId);
@@ -152,6 +164,7 @@ function App() {
           <>
             <Dashboard
               medications={medications}
+              profile={profile}
               onAdd={() => setShowAddModal(true)}
               onScan={() => setShowScanModal(true)}
               onMedClick={(id) => {
@@ -164,7 +177,10 @@ function App() {
 
         {currentView === 'detail' && selectedMed && (
           <div className="p-6">
-            <button onClick={() => setCurrentView('dashboard')} className="mb-4 text-blue-700">
+            <button 
+              onClick={() => setCurrentView('dashboard')} 
+              className="mb-4 text-blue-700 hover:underline"
+            >
               ← Back
             </button>
             <MedCard
@@ -176,6 +192,7 @@ function App() {
 
         {showAddModal && (
           <AddMedModal
+            profile={profile}
             onClose={() => setShowAddModal(false)}
             onSubmit={handleAddMedSubmit}
           />
@@ -192,15 +209,5 @@ function App() {
     </>
   );
 }
-<Dashboard
-  medications={medications}
-  onAdd={() => setShowAddModal(true)}
-  onScan={() => setShowScanModal(true)}
-  onMedClick={(id) => {
-    setSelectedMedId(id);
-    setCurrentView('detail');
-  }}
-  userName={profile?.name?.split(' ')[0] || 'User'}
-/>
 
 export default App;
