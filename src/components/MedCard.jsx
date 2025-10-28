@@ -119,3 +119,4 @@ export default function MedCard({ medication, onMarkTaken, onTranslate }) {
     </div>
   );
 }
+

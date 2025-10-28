@@ -76,3 +76,4 @@ export default function Dashboard({ medications, profile, onAdd, onScan, onMedCl
     </div>
   );
 } 
+

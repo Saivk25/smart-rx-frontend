@@ -29,7 +29,7 @@ function App() {
 
   const checkProfile = async () => {
     try {
-      const res = await fetch(`/api/profile/get?id=${PATIENT_ID}`);
+      const res = await fetch(`http://localhost:3000/api//profile/get?id=${PATIENT_ID}`);
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
@@ -46,7 +46,7 @@ function App() {
 
   const loadMedications = async () => {
     try {
-      const res = await fetch(`/api/med/list?id=${PATIENT_ID}`);
+      const res = await fetch(`http://localhost:3000/api//med/list?id=${PATIENT_ID}`);
       const data = await res.json();
       setMedications(data || []);
     } catch (err) {
@@ -55,54 +55,63 @@ function App() {
   };
 
   const handleProfileComplete = async (data) => {
-    try {
-      const res = await fetch('/api/profile/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: PATIENT_ID,
-          profile: {
-            name: data.name,
-            age: Number(data.age),
-            allergies: data.allergies ? data.allergies.split(',').map(a => a.trim()).filter(Boolean) : [],
-            conditions: data.conditions ? data.conditions.split(',').map(c => c.trim()).filter(Boolean) : [],
-          }
-        })
-      });
+  try {
+    const res = await fetch('http://localhost:3000/api/profile/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'demo_patient_123',
+        profile: {
+          name: data.name,
+          age: Number(data.age),
+          allergies: data.allergies ? data.allergies.split(',').map(a => a.trim()) : [],
+          conditions: data.conditions ? data.conditions.split(',').map(c => c.trim()) : [],
+        }
+      })
+    });
 
-      if (!res.ok) throw new Error('Failed to save profile');
-      setProfile(data);
-      setCurrentView('dashboard');
-      toast.success('Profile saved!');
-    } catch (err) {
-      toast.error('Failed to save profile');
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(error || 'Failed to save');
     }
-  };
+
+    setProfile(data);
+    setCurrentView('dashboard');
+    toast.success('Profile saved!');
+  } catch (err) {
+    console.error('Save failed:', err);
+    toast.error(err.message || 'Failed to save profile');
+  }
+};
 
   const handleAddMedSubmit = async (med) => {
-    try {
-      const res = await fetch('/api/med/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: PATIENT_ID, medication: med })
-      });
-      const result = await res.json();
-      if (result.alert) {
-        toast.error(result.message);
-      } else {
-        setMedications(prev => [result.medication, ...prev]);
-        toast.success('Medication added!');
-      }
-      setShowAddModal(false);
-    } catch (err) {
-      toast.error('Failed to add medication');
-    }
-  };
+  try {
+    const res = await fetch('http://localhost:3000/api/med/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'demo_patient_123', medication: med })
+    });
+    const result = await res.json();
+    console.log('Add result:', result); // DEBUG
 
+    if (result.medication) {
+      setMedications(prev => [result.medication, ...prev]);
+      toast.success('Medication added!');
+    } else if (result.status === 'CRITICAL') {
+      toast.error('CRITICAL: Not added');
+    } else {
+      toast.error('Failed to add');
+    }
+    setShowAddModal(false);
+  } catch (err) {
+    console.error(err);
+    toast.error('Network error');
+  }
+};
   const handleExtractData = async (file) => {
     const formData = new FormData();
     formData.append('image', file);
-    const res = await fetch('/api/scanner/scan', {
+    const res = await fetch('http://localhost:3000/api//scanner/scan', {
       method: 'POST',
       body: formData
     });
@@ -111,16 +120,16 @@ function App() {
 
   const handleUseExtractedData = (data) => {
     handleAddMedSubmit({
-      drug_name: data.drug_name,
-      dosage: data.dosage,
-      instructions: data.instructions
+      drug_name: formData.drug_name,
+      dosage: formData.dosage,
+      instructions: formData.instructions
     });
     setShowScanModal(false);
   };
 
   const handleTranslate = async (med) => {
     try {
-      const res = await fetch('/api/translator/translate', {
+      const res = await fetch('http://localhost:3000/api//translator/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -142,9 +151,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>
@@ -155,55 +164,38 @@ function App() {
     <>
       <Toaster position="top-center" />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-
         {currentView === 'onboarding' && (
           <ProfileForm onComplete={handleProfileComplete} />
         )}
 
         {currentView === 'dashboard' && (
-          <>
-            <Dashboard
-              medications={medications}
-              profile={profile}
-              onAdd={() => setShowAddModal(true)}
-              onScan={() => setShowScanModal(true)}
-              onMedClick={(id) => {
-                setSelectedMedId(id);
-                setCurrentView('detail');
-              }}
-            />
-          </>
+          <Dashboard
+            medications={medications}
+            profile={profile}
+            onAdd={() => setShowAddModal(true)}
+            onScan={() => setShowScanModal(true)}
+            onMedClick={(id) => {
+              setSelectedMedId(id);
+              setCurrentView('detail');
+            }}
+          />
         )}
 
         {currentView === 'detail' && selectedMed && (
           <div className="p-6">
-            <button 
-              onClick={() => setCurrentView('dashboard')} 
-              className="mb-4 text-blue-700 hover:underline"
-            >
+            <button onClick={() => setCurrentView('dashboard')} className="mb-4 text-blue-700 hover:underline">
               ← Back
             </button>
-            <MedCard
-              med={selectedMed}
-              onTranslate={handleTranslate}
-            />
+            <MedCard med={selectedMed} onTranslate={handleTranslate} />
           </div>
         )}
 
         {showAddModal && (
-          <AddMedModal
-            profile={profile}
-            onClose={() => setShowAddModal(false)}
-            onSubmit={handleAddMedSubmit}
-          />
+          <AddMedModal profile={profile} onClose={() => setShowAddModal(false)} onSubmit={handleAddMedSubmit} />
         )}
 
         {showScanModal && (
-          <ScannerModal
-            onClose={() => setShowScanModal(false)}
-            onExtract={handleExtractData}
-            onUse={handleUseExtractedData}
-          />
+          <ScannerModal onClose={() => setShowScanModal(false)} onExtract={handleExtractData} onUse={handleUseExtractedData} />
         )}
       </div>
     </>

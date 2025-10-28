@@ -262,3 +262,4 @@ export default function ScannerModal({ onClose, onExtract, onUseExtracted }) {
     </div>
   );
 }
+

@@ -1,4 +1,3 @@
-// src/components/ProfileForm.jsx
 import React, { useState } from 'react';
 
 export default function ProfileForm({ onComplete }) {
@@ -29,7 +28,7 @@ export default function ProfileForm({ onComplete }) {
             value={formData.name}
             onChange={handleChange}
             required
-            className="w-full p-3 border rounded-lg"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
           <input
             name="age"
@@ -38,25 +37,25 @@ export default function ProfileForm({ onComplete }) {
             value={formData.age}
             onChange={handleChange}
             required
-            className="w-full p-3 border rounded-lg"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
           <input
             name="allergies"
             placeholder="Allergies (comma-separated)"
             value={formData.allergies}
             onChange={handleChange}
-            className="w-full p-3 border rounded-lg"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
           <input
             name="conditions"
             placeholder="Conditions (comma-separated)"
             value={formData.conditions}
             onChange={handleChange}
-            className="w-full p-3 border rounded-lg"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"
-            className="w-full bg-blue-700 text-white py-3 rounded-lg font-semibold"
+            className="w-full bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800"
           >
             Save & Continue
           </button>
