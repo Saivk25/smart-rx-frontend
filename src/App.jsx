@@ -1,0 +1,206 @@
+// src/App.jsx
+import React, { useState, useEffect } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
+import ProfileForm from './components/ProfileForm';
+import Dashboard from './components/Dashboard';
+import MedCard from './components/MedCard';
+import AddMedModal from './components/AddMedModal';
+import ScannerModal from './components/ScannerModal';
+
+const PATIENT_ID = 'demo_patient_123';
+
+function App() {
+  const [currentView, setCurrentView] = useState('onboarding');
+  const [medications, setMedications] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [selectedMedId, setSelectedMedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkProfile();
+  }, []);
+
+  useEffect(() => {
+    if (currentView === 'dashboard') {
+      loadMedications();
+    }
+  }, [currentView]);
+
+  const checkProfile = async () => {
+    try {
+      const res = await fetch(`/api/profile/get?id=${PATIENT_ID}`);
+      if (res.ok) {
+        const profile = await res.json();
+        if (profile.name) {
+          setCurrentView('dashboard');
+        }
+      }
+    } catch (err) {
+      console.error('Profile check failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMedications = async () => {
+    try {
+      const res = await fetch(`/api/med/list?id=${PATIENT_ID}`);
+      const data = await res.json();
+      setMedications(data || []);
+    } catch (err) {
+      toast.error('Failed to load medications');
+    }
+  };
+
+  const handleProfileComplete = async (data) => {
+    try {
+      const res = await fetch('/api/profile/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: PATIENT_ID,
+          profile: {
+            name: data.name,
+            age: data.age,
+            allergies: data.allergies.split(',').map(a => a.trim()).filter(Boolean),
+            conditions: data.conditions.split(',').map(c => c.trim()).filter(Boolean),
+          }
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to save profile');
+      setCurrentView('dashboard');
+      toast.success('Profile saved!');
+    } catch (err) {
+      toast.error('Failed to save profile');
+    }
+  };
+
+  const handleAddMedSubmit = async (med) => {
+    try {
+      const res = await fetch('/api/med/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: PATIENT_ID, medication: med })
+      });
+      const result = await res.json();
+      if (result.alert) {
+        toast.error(result.message);
+      } else {
+        setMedications(prev => [result.medication, ...prev]);
+        toast.success('Medication added!');
+      }
+      setShowAddModal(false);
+    } catch (err) {
+      toast.error('Failed to add');
+    }
+  };
+
+  const handleExtractData = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch('/api/scanner/scan', {
+      method: 'POST',
+      body: formData
+    });
+    return await res.json();
+  };
+
+  const handleUseExtractedData = (data) => {
+    handleAddMedSubmit({
+      drug_name: data.drug_name,
+      dosage: data.dosage,
+      instructions: data.instructions
+    });
+  };
+
+  const handleTranslate = async (med) => {
+    const res = await fetch('/api/translator/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(med)
+    });
+    const { translation } = await res.json();
+    toast.success('Translated!');
+    return translation;
+  };
+
+  const selectedMed = medications.find(m => m.id === selectedMedId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Toaster position="top-center" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+
+        {currentView === 'onboarding' && (
+          <ProfileForm onComplete={handleProfileComplete} />
+        )}
+
+        {currentView === 'dashboard' && (
+          <>
+            <Dashboard
+              medications={medications}
+              onAdd={() => setShowAddModal(true)}
+              onScan={() => setShowScanModal(true)}
+              onMedClick={(id) => {
+                setSelectedMedId(id);
+                setCurrentView('detail');
+              }}
+            />
+          </>
+        )}
+
+        {currentView === 'detail' && selectedMed && (
+          <div className="p-6">
+            <button onClick={() => setCurrentView('dashboard')} className="mb-4 text-blue-700">
+              ← Back
+            </button>
+            <MedCard
+              med={selectedMed}
+              onTranslate={handleTranslate}
+            />
+          </div>
+        )}
+
+        {showAddModal && (
+          <AddMedModal
+            onClose={() => setShowAddModal(false)}
+            onSubmit={handleAddMedSubmit}
+          />
+        )}
+
+        {showScanModal && (
+          <ScannerModal
+            onClose={() => setShowScanModal(false)}
+            onExtract={handleExtractData}
+            onUse={handleUseExtractedData}
+          />
+        )}
+      </div>
+    </>
+  );
+}
+<Dashboard
+  medications={medications}
+  onAdd={() => setShowAddModal(true)}
+  onScan={() => setShowScanModal(true)}
+  onMedClick={(id) => {
+    setSelectedMedId(id);
+    setCurrentView('detail');
+  }}
+  userName={profile?.name?.split(' ')[0] || 'User'}
+/>
+
+export default App;
